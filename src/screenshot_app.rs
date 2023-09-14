@@ -48,6 +48,10 @@ impl eframe::App for ScreenshotApp {
                 // 渲染截图
                 self.capture_image.show(ui);
 
+                // 鼠标当前颜色的图片
+                let color_buffer = ImageBuffer::from_pixel(10, 10, *pixel);
+                let color_image = buffer2retained_image("color.png", &color_buffer);
+
                 // 渲染截图片段
                 egui::Window::new("rect")
                     .current_pos(egui::Pos2 {
@@ -60,6 +64,7 @@ impl eframe::App for ScreenshotApp {
                             ui.horizontal(|ui| {
                                 ui.label("color:");
                                 ui.label(format!("{:?}", pixel));
+                                color_image.show(ui);
                             });
                         }
                     });
