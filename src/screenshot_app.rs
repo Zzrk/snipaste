@@ -1,6 +1,6 @@
 use egui::ColorImage;
 use egui_extras::RetainedImage;
-use image::{imageops, ImageBuffer, Rgba};
+use image::{ImageBuffer, Rgba};
 use screenshots::Screen;
 
 pub struct ScreenshotApp {
@@ -32,15 +32,32 @@ impl eframe::App for ScreenshotApp {
         // 保存当前鼠标位置
         let pos = ctx.pointer_hover_pos().unwrap_or(self.pos);
         self.pos = pos;
-        let x = pos.x as u32;
-        let y = pos.y as u32;
+        let pos_x = pos.x as u32;
+        let pos_y = pos.y as u32;
 
         // 鼠标周围的截图片段
-        let subimg = imageops::crop(&mut self.capture_buffer, x, y, 200, 100);
-        self.rect_image = Some(buffer2retained_image("rect.png", &subimg.to_image()));
+        let subimg = ImageBuffer::from_fn(200, 100, |x, y| {
+            let sub_x = pos_x as i32 - 100 + x as i32;
+            let sub_y = pos_y as i32 - 50 + y as i32;
+            if sub_x < 0 || sub_y < 0 {
+                // let sum = sub_x + sub_y;
+                // if (sum % 2 == -1) || (sum % 2 == 1) {
+                //     image::Rgba([0, 255, 0, 255])
+                // } else {
+                //     image::Rgba([255, 0, 0, 255])
+                // }
+
+                // 图片范围之外的区域
+                image::Rgba([255, 255, 255, 0])
+            } else {
+                *self.capture_buffer.get_pixel(sub_x as u32, sub_y as u32)
+            }
+        });
+        // let subimg = imageops::crop(&mut self.capture_buffer, x, y, 200, 100);
+        self.rect_image = Some(buffer2retained_image("rect.png", &subimg));
 
         // 鼠标当前的颜色
-        let pixel = self.capture_buffer.get_pixel(x, y);
+        let pixel = self.capture_buffer.get_pixel(pos_x, pos_y);
 
         egui::TopBottomPanel::top("capture")
             .max_height(400.0)
