@@ -3,8 +3,7 @@
 fn main() -> eframe::Result<()> {
     // let default_options = eframe::NativeOptions::default();
     let fullscreen_options = eframe::NativeOptions {
-        // TODO: fullscreen 有 padding
-        // fullscreen: true,
+        fullscreen: true,
         ..Default::default()
     };
 

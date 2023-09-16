@@ -10,8 +10,6 @@ pub struct ScreenshotApp {
     capture_image: RetainedImage,
     // 鼠标位置
     pos: egui::Pos2,
-    // 鼠标周围的截图片段
-    rect_image: Option<RetainedImage>,
 }
 
 impl Default for ScreenshotApp {
@@ -22,13 +20,29 @@ impl Default for ScreenshotApp {
             capture_buffer,
             capture_image,
             pos: egui::Pos2 { x: 0.0, y: 0.0 },
-            rect_image: None,
         }
     }
 }
 
 impl eframe::App for ScreenshotApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // 自定义 Window 样式
+        let mut style = (*ctx.style()).clone();
+        style.spacing.window_margin = egui::style::Margin {
+            top: 0.0,
+            bottom: 0.0,
+            left: 0.0,
+            right: 0.0,
+        };
+        ctx.set_style(style);
+
+        // 渲染截图
+        egui::Window::new("capture")
+            .title_bar(false)
+            .show(ctx, |ui| {
+                self.capture_image.show(ui);
+            });
+
         // 保存当前鼠标位置
         let pos = ctx.pointer_hover_pos().unwrap_or(self.pos);
         self.pos = pos;
@@ -39,52 +53,40 @@ impl eframe::App for ScreenshotApp {
         let subimg = ImageBuffer::from_fn(200, 100, |x, y| {
             let sub_x = pos_x as i32 - 100 + x as i32;
             let sub_y = pos_y as i32 - 50 + y as i32;
-            if sub_x < 0 || sub_y < 0 {
-                // let sum = sub_x + sub_y;
-                // if (sum % 2 == -1) || (sum % 2 == 1) {
-                //     image::Rgba([0, 255, 0, 255])
-                // } else {
-                //     image::Rgba([255, 0, 0, 255])
-                // }
-
-                // 图片范围之外的区域
+            if sub_x < 0
+                || sub_y < 0
+                || sub_x >= self.capture_image.width() as i32
+                || sub_y >= self.capture_image.height() as i32
+            {
+                // TODO: 图片范围之外的区域改为透明表示
                 image::Rgba([255, 255, 255, 0])
             } else {
                 *self.capture_buffer.get_pixel(sub_x as u32, sub_y as u32)
             }
         });
-        // let subimg = imageops::crop(&mut self.capture_buffer, x, y, 200, 100);
-        self.rect_image = Some(buffer2retained_image("rect.png", &subimg));
+        let rect_image = buffer2retained_image("rect.png", &subimg);
 
         // 鼠标当前的颜色
         let pixel = self.capture_buffer.get_pixel(pos_x, pos_y);
 
-        egui::TopBottomPanel::top("capture")
-            .max_height(400.0)
+        // 鼠标当前颜色的图片
+        let color_buffer = ImageBuffer::from_pixel(10, 10, *pixel);
+        let color_image = buffer2retained_image("color.png", &color_buffer);
+
+        // 渲染截图片段
+        egui::Window::new("rect")
+            .title_bar(false)
+            .current_pos(egui::Pos2 {
+                x: pos.x + 10.0,
+                y: pos.y + 10.0,
+            })
             .show(ctx, |ui| {
-                // 渲染截图
-                self.capture_image.show(ui);
-
-                // 鼠标当前颜色的图片
-                let color_buffer = ImageBuffer::from_pixel(10, 10, *pixel);
-                let color_image = buffer2retained_image("color.png", &color_buffer);
-
-                // 渲染截图片段
-                egui::Window::new("rect")
-                    .current_pos(egui::Pos2 {
-                        x: pos.x + 10.0,
-                        y: pos.y + 10.0,
-                    })
-                    .show(ctx, |ui| {
-                        if let Some(rc) = &self.rect_image {
-                            rc.show(ui);
-                            ui.horizontal(|ui| {
-                                ui.label("color:");
-                                ui.label(format!("{:?}", pixel));
-                                color_image.show(ui);
-                            });
-                        }
-                    });
+                rect_image.show(ui);
+                ui.horizontal(|ui| {
+                    ui.label("color:");
+                    ui.label(format!("{:?}", pixel));
+                    color_image.show(ui);
+                });
             });
     }
 }
