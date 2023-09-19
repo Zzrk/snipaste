@@ -9,7 +9,7 @@ pub struct ScreenshotApp {
     // 截图 image 用于渲染
     capture_image: RetainedImage,
     // 鼠标位置
-    pos: egui::Pos2,
+    cur_pos: egui::Pos2,
 }
 
 impl Default for ScreenshotApp {
@@ -19,33 +19,24 @@ impl Default for ScreenshotApp {
         Self {
             capture_buffer,
             capture_image,
-            pos: egui::Pos2 { x: 0.0, y: 0.0 },
+            cur_pos: egui::Pos2 { x: 0.0, y: 0.0 },
         }
     }
 }
 
-impl eframe::App for ScreenshotApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // 自定义 Window 样式
-        let mut style = (*ctx.style()).clone();
-        style.spacing.window_margin = egui::style::Margin {
-            top: 0.0,
-            bottom: 0.0,
-            left: 0.0,
-            right: 0.0,
-        };
-        ctx.set_style(style);
-
-        // 渲染截图
+impl ScreenshotApp {
+    // 渲染截图
+    fn show_capture_image(&self, ctx: &egui::Context) {
         egui::Window::new("capture")
             .title_bar(false)
             .show(ctx, |ui| {
                 self.capture_image.show(ui);
             });
+    }
 
-        // 保存当前鼠标位置
-        let pos = ctx.pointer_hover_pos().unwrap_or(self.pos);
-        self.pos = pos;
+    // 渲染截图片段
+    fn show_rect_image(&self, ctx: &egui::Context) {
+        let pos = self.cur_pos;
         let pos_x = pos.x as u32;
         let pos_y = pos.y as u32;
 
@@ -88,6 +79,27 @@ impl eframe::App for ScreenshotApp {
                     color_image.show(ui);
                 });
             });
+    }
+}
+
+impl eframe::App for ScreenshotApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // 自定义 Window 样式
+        let mut style = (*ctx.style()).clone();
+        style.spacing.window_margin = egui::style::Margin {
+            top: 0.0,
+            bottom: 0.0,
+            left: 0.0,
+            right: 0.0,
+        };
+        ctx.set_style(style);
+
+        // 保存当前鼠标位置
+        let pos = ctx.pointer_hover_pos().unwrap_or(self.cur_pos);
+        self.cur_pos = pos;
+
+        self.show_capture_image(ctx);
+        self.show_rect_image(ctx);
     }
 }
 
