@@ -1,6 +1,7 @@
-use egui::{Color32, ColorImage, Rect};
+use egui::{Color32, ColorImage, Key, Modifiers, Rect};
 use egui_extras::RetainedImage;
-use image::{ImageBuffer, Rgba};
+use image::{imageops, ImageBuffer, Rgba};
+use rfd::FileDialog;
 use screenshots::Screen;
 
 pub struct ScreenshotApp {
@@ -161,6 +162,28 @@ impl eframe::App for ScreenshotApp {
         // 记录鼠标终点位置
         if self.end_pos.is_none() && ctx.input(|i| i.pointer.primary_released()) {
             self.end_pos = ctx.pointer_interact_pos();
+        }
+
+        // Ctrl+S 保存截图
+        if self.start_pos.is_some()
+            && self.end_pos.is_some()
+            && ctx.input_mut(|i| i.consume_key(Modifiers::CTRL, Key::S))
+        {
+            let start_pos = self.start_pos.unwrap();
+            let end_pos = self.end_pos.unwrap();
+            let image = imageops::crop(
+                &mut self.capture_buffer,
+                start_pos.x as u32,
+                start_pos.y as u32,
+                end_pos.x as u32,
+                end_pos.y as u32,
+            );
+            if let Some(path) = FileDialog::new().set_file_name("capture.png").save_file() {
+                println!("{}", path.display());
+                image.to_image().save(path.as_path()).unwrap();
+                self.start_pos = None;
+                self.end_pos = None;
+            }
         }
 
         self.show_capture_image(ctx);
