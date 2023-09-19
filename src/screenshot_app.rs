@@ -1,4 +1,4 @@
-use egui::ColorImage;
+use egui::{Color32, ColorImage, Rect};
 use egui_extras::RetainedImage;
 use image::{ImageBuffer, Rgba};
 use screenshots::Screen;
@@ -8,8 +8,12 @@ pub struct ScreenshotApp {
     capture_buffer: ImageBuffer<Rgba<u8>, Vec<u8>>,
     // 截图 image 用于渲染
     capture_image: RetainedImage,
-    // 鼠标位置
+    // 当前鼠标位置
     cur_pos: egui::Pos2,
+    // 起始鼠标位置
+    start_pos: Option<egui::Pos2>,
+    // 终点鼠标位置
+    end_pos: Option<egui::Pos2>,
 }
 
 impl Default for ScreenshotApp {
@@ -20,6 +24,8 @@ impl Default for ScreenshotApp {
             capture_buffer,
             capture_image,
             cur_pos: egui::Pos2 { x: 0.0, y: 0.0 },
+            start_pos: None,
+            end_pos: None,
         }
     }
 }
@@ -31,11 +37,12 @@ impl ScreenshotApp {
             .title_bar(false)
             .show(ctx, |ui| {
                 self.capture_image.show(ui);
+                self.show_shadow_area(ctx, ui.painter())
             });
     }
 
     // 渲染截图片段
-    fn show_rect_image(&self, ctx: &egui::Context) {
+    fn show_rect_image(&mut self, ctx: &egui::Context) {
         let pos = self.cur_pos;
         let pos_x = pos.x as u32;
         let pos_y = pos.y as u32;
@@ -80,6 +87,54 @@ impl ScreenshotApp {
                 });
             });
     }
+
+    // 渲染遮罩区域
+    fn show_shadow_area(&self, ctx: &egui::Context, painter: &egui::Painter) {
+        if let Some(start_pos) = self.start_pos {
+            let screen_rect = ctx.screen_rect();
+            let cur_pos = self.end_pos.unwrap_or(self.cur_pos);
+            // 计算左上角的位置
+            let tl_pos = egui::Pos2 {
+                x: start_pos.x.min(cur_pos.x),
+                y: start_pos.y.min(cur_pos.y),
+            };
+            // 计算右下角的位置
+            let br_pos = egui::Pos2 {
+                x: start_pos.x.max(cur_pos.x),
+                y: start_pos.y.max(cur_pos.y),
+            };
+            // 左上
+            painter.rect_filled(
+                Rect::from_two_pos(screen_rect.min, egui::pos2(tl_pos.x, br_pos.y)),
+                0.0,
+                Color32::from_black_alpha(170),
+            );
+            // 右上
+            painter.rect_filled(
+                Rect::from_two_pos(
+                    egui::pos2(tl_pos.x, screen_rect.min.y),
+                    egui::pos2(screen_rect.max.x, tl_pos.y),
+                ),
+                0.0,
+                Color32::from_black_alpha(170),
+            );
+            // 左下
+            painter.rect_filled(
+                Rect::from_two_pos(
+                    egui::pos2(screen_rect.min.x, br_pos.y),
+                    egui::pos2(br_pos.x, screen_rect.max.y),
+                ),
+                0.0,
+                Color32::from_black_alpha(170),
+            );
+            // 右下
+            painter.rect_filled(
+                Rect::from_two_pos(egui::pos2(br_pos.x, tl_pos.y), screen_rect.max),
+                0.0,
+                Color32::from_black_alpha(170),
+            );
+        }
+    }
 }
 
 impl eframe::App for ScreenshotApp {
@@ -95,8 +150,18 @@ impl eframe::App for ScreenshotApp {
         ctx.set_style(style);
 
         // 保存当前鼠标位置
-        let pos = ctx.pointer_hover_pos().unwrap_or(self.cur_pos);
-        self.cur_pos = pos;
+        let cur_pos = ctx.pointer_hover_pos().unwrap_or(self.cur_pos);
+        self.cur_pos = cur_pos;
+
+        // 记录鼠标起始位置
+        if self.start_pos.is_none() && ctx.input(|i| i.pointer.primary_pressed()) {
+            self.start_pos = ctx.pointer_interact_pos();
+        }
+
+        // 记录鼠标终点位置
+        if self.end_pos.is_none() && ctx.input(|i| i.pointer.primary_released()) {
+            self.end_pos = ctx.pointer_interact_pos();
+        }
 
         self.show_capture_image(ctx);
         self.show_rect_image(ctx);
