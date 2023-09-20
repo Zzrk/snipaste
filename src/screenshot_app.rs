@@ -36,6 +36,7 @@ impl ScreenshotApp {
     fn show_capture_image(&self, ctx: &egui::Context) {
         egui::Window::new("capture")
             .title_bar(false)
+            .resizable(false)
             .show(ctx, |ui| {
                 self.capture_image.show(ui);
                 self.show_shadow_area(ctx, ui.painter())
@@ -75,15 +76,20 @@ impl ScreenshotApp {
         // 渲染截图片段
         egui::Window::new("rect")
             .title_bar(false)
+            .resizable(false)
             .current_pos(egui::Pos2 {
                 x: pos.x + 10.0,
                 y: pos.y + 10.0,
             })
+            .default_width(200.0)
             .show(ctx, |ui| {
-                rect_image.show(ui);
-                ui.horizontal(|ui| {
-                    ui.label("color:");
-                    ui.label(format!("{:?}", pixel));
+                ui.vertical_centered(|ui| {
+                    rect_image.show(ui);
+                    ui.label(format!("{pos_x}, {pos_y}"));
+                    ui.label(format!(
+                        "{}, {}, {}, {}",
+                        pixel[0], pixel[1], pixel[2], pixel[3]
+                    ));
                     color_image.show(ui);
                 });
             });
@@ -148,6 +154,13 @@ impl eframe::App for ScreenshotApp {
             left: 0.0,
             right: 0.0,
         };
+        style.spacing.item_spacing = egui::Vec2 { x: 2.0, y: 2.0 };
+        style.visuals.window_rounding = egui::Rounding {
+            nw: 0.0,
+            ne: 0.0,
+            se: 0.0,
+            sw: 0.0,
+        };
         ctx.set_style(style);
 
         // 保存当前鼠标位置
@@ -164,30 +177,43 @@ impl eframe::App for ScreenshotApp {
             self.end_pos = ctx.pointer_interact_pos();
         }
 
-        // Ctrl+S 保存截图
-        if self.start_pos.is_some()
-            && self.end_pos.is_some()
-            && ctx.input_mut(|i| i.consume_key(Modifiers::CTRL, Key::S))
-        {
-            let start_pos = self.start_pos.unwrap();
-            let end_pos = self.end_pos.unwrap();
+        // 已经获取截图区域
+        if self.start_pos.is_some() && self.end_pos.is_some() {
+            let rect = egui::Rect::from_two_pos(self.start_pos.unwrap(), self.end_pos.unwrap());
+            let tl_pos = rect.left_top();
             let image = imageops::crop(
                 &mut self.capture_buffer,
-                start_pos.x as u32,
-                start_pos.y as u32,
-                end_pos.x as u32,
-                end_pos.y as u32,
+                tl_pos.x as u32,
+                tl_pos.y as u32,
+                rect.width() as u32,
+                rect.height() as u32,
             );
-            if let Some(path) = FileDialog::new().set_file_name("capture.png").save_file() {
-                println!("{}", path.display());
-                image.to_image().save(path.as_path()).unwrap();
-                self.start_pos = None;
-                self.end_pos = None;
+            // Ctrl+S 保存截图
+            if ctx.input_mut(|i| i.consume_key(Modifiers::CTRL, Key::S)) {
+                if let Some(path) = FileDialog::new().set_file_name("capture.png").save_file() {
+                    println!("{}", path.display());
+                    image.to_image().save(path.as_path()).unwrap();
+                    self.start_pos = None;
+                    self.end_pos = None;
+                }
+            }
+
+            // TODO: Ctrl+C 复制到剪切板
+            if ctx.input_mut(|i| i.consume_key(Modifiers::CTRL, Key::C)) {
+                println!("图片复制到剪切板");
+                // let mut data = Vec::new();
+                // image
+                //     .to_image()
+                //     .write_to(&mut Cursor::new(&mut data), ImageOutputFormat::Bmp)
+                //     .expect("Unable to transform");
+                // set_clipboard(formats::Bitmap, data).expect("Copy to clipboard");
+                // self.start_pos = None;
+                // self.end_pos = None;
             }
         }
 
-        // ESC 返回上一步
-        if ctx.input(|i| i.key_released(Key::Escape)) {
+        // ESC 或鼠标右键返回上一步
+        if ctx.input(|i| i.key_released(Key::Escape) || i.pointer.secondary_released()) {
             if self.start_pos.is_some() || self.end_pos.is_some() {
                 self.start_pos = None;
                 self.end_pos = None;
