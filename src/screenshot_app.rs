@@ -139,7 +139,7 @@ impl ScreenshotApp {
 }
 
 impl eframe::App for ScreenshotApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // 自定义 Window 样式
         let mut style = (*ctx.style()).clone();
         style.spacing.window_margin = egui::style::Margin {
@@ -183,6 +183,16 @@ impl eframe::App for ScreenshotApp {
                 image.to_image().save(path.as_path()).unwrap();
                 self.start_pos = None;
                 self.end_pos = None;
+            }
+        }
+
+        // ESC 返回上一步
+        if ctx.input(|i| i.key_released(Key::Escape)) {
+            if self.start_pos.is_some() || self.end_pos.is_some() {
+                self.start_pos = None;
+                self.end_pos = None;
+            } else {
+                frame.close();
             }
         }
 
