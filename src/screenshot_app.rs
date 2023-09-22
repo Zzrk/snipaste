@@ -1,8 +1,10 @@
+use arboard::{Clipboard, ImageData};
 use egui::{Color32, ColorImage, Key, Modifiers, Rect};
 use egui_extras::RetainedImage;
-use image::{imageops, ImageBuffer, Rgba};
+use image::{imageops, GenericImageView, ImageBuffer, Rgba};
 use rfd::FileDialog;
 use screenshots::Screen;
+use std::borrow::Cow;
 
 pub struct ScreenshotApp {
     // 截图 buffer
@@ -201,14 +203,20 @@ impl eframe::App for ScreenshotApp {
             // TODO: Ctrl+C 复制到剪切板
             if ctx.input_mut(|i| i.consume_key(Modifiers::CTRL, Key::C)) {
                 println!("图片复制到剪切板");
-                // let mut data = Vec::new();
-                // image
-                //     .to_image()
-                //     .write_to(&mut Cursor::new(&mut data), ImageOutputFormat::Bmp)
-                //     .expect("Unable to transform");
-                // set_clipboard(formats::Bitmap, data).expect("Copy to clipboard");
-                // self.start_pos = None;
-                // self.end_pos = None;
+                let mut clipboard = Clipboard::new().unwrap();
+                let mut buffer = Vec::new();
+                for pixel in image.pixels() {
+                    buffer.push(pixel.2[0]);
+                    buffer.push(pixel.2[1]);
+                    buffer.push(pixel.2[2]);
+                    buffer.push(pixel.2[3]);
+                }
+                let image_data = ImageData {
+                    width: image.width() as usize,
+                    height: image.height() as usize,
+                    bytes: Cow::from(&buffer),
+                };
+                clipboard.set_image(image_data).unwrap();
             }
         }
 

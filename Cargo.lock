@@ -150,6 +150,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac57f2b058a76363e357c056e4f74f1945bf734d37b8b3ef49066c4787dde0fc"
 dependencies = [
  "clipboard-win",
+ "core-graphics 0.22.3",
+ "image",
  "log",
  "objc",
  "objc-foundation",
@@ -2476,6 +2478,7 @@ dependencies = [
 name = "snipaste"
 version = "0.1.0"
 dependencies = [
+ "arboard",
  "eframe",
  "egui",
  "egui_extras",
