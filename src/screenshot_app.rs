@@ -1,4 +1,5 @@
 use arboard::{Clipboard, ImageData};
+use egui::containers::Frame;
 use egui::{Color32, ColorImage, Key, Modifiers, Rect};
 use egui_extras::RetainedImage;
 use image::{imageops, GenericImageView, ImageBuffer, Rgba};
@@ -36,13 +37,20 @@ impl Default for ScreenshotApp {
 impl ScreenshotApp {
     // 渲染截图
     fn show_capture_image(&self, ctx: &egui::Context) {
-        egui::Window::new("capture")
-            .title_bar(false)
-            .resizable(false)
+        // 避免了 window 之间的遮挡
+        egui::CentralPanel::default()
+            .frame(Frame::none().fill(Color32::WHITE))
             .show(ctx, |ui| {
                 self.capture_image.show(ui);
                 self.show_shadow_area(ctx, ui.painter())
             });
+        // egui::Window::new("capture")
+        //     .title_bar(false)
+        //     .resizable(false)
+        //     .show(ctx, |ui| {
+        //         self.capture_image.show(ui);
+        //         self.show_shadow_area(ctx, ui.painter())
+        //     });
     }
 
     // 渲染截图片段
@@ -156,7 +164,6 @@ impl eframe::App for ScreenshotApp {
             left: 0.0,
             right: 0.0,
         };
-        style.spacing.item_spacing = egui::Vec2 { x: 2.0, y: 2.0 };
         style.visuals.window_rounding = egui::Rounding {
             nw: 0.0,
             ne: 0.0,
@@ -200,7 +207,7 @@ impl eframe::App for ScreenshotApp {
                 }
             }
 
-            // TODO: Ctrl+C 复制到剪切板
+            // Ctrl+C 复制到剪切板
             if ctx.input_mut(|i| i.consume_key(Modifiers::CTRL, Key::C)) {
                 println!("图片复制到剪切板");
                 let mut clipboard = Clipboard::new().unwrap();
